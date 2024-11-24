@@ -1,0 +1,5 @@
+const PROJECT_ID = process.env.REACT_APP_PROJECT_ID;
+const DATABASE_ID = process.env.REACT_APP_DATABASE_ID;
+const COLLECTION_ID_MESSAGES = process.env.REACT_APP_COLLECTION_ID_MESSAGES;
+
+console.log('Project ID:', PROJECT_ID);

@@ -1,103 +1,130 @@
-import { React, useState, useEffect } from "react";
-import {
+import React, { useState, useEffect } from "react";
+import client, {
   databases,
   DATABASE_ID,
   COLLECTION_ID_MESSAGES,
 } from "../appwriteConfig";
-import { ID, Query } from "appwrite";
-import { Trash2 } from "react-feather"
+import { ID, Query, Permission, Role } from "appwrite";
+import { Trash2 } from "react-feather";
+
 const Room = () => {
-  const [messages, setMessages] = useState([]);
   const [messageBody, setMessageBody] = useState("");
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
     getMessages();
+
+    const unsubscribe = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COLLECTION_ID_MESSAGES}.documents`,
+      (response) => {
+        if (
+          response.events.includes(
+            "databases.*.collections.*.documents.*.create"
+          )
+        ) {
+          console.log("A MESSAGE WAS CREATED");
+          setMessages((prevState) => [response.payload, ...prevState]);
+        }
+        console.log('REAL TIME', response)
+        if (
+          response.events.includes(
+            "databases.*.collections.*.documents.*.delete"
+          )
+        ) {
+          console.log("A MESSAGE WAS DELETED!!!");
+          setMessages((prevState) =>
+            prevState.filter((message) => message.$id !== response.payload.$id)
+          );
+        }
+      }
+    );
+
+    console.log("unsubscribe:", unsubscribe);
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  const getMessages = async () => {
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTION_ID_MESSAGES,
+      [Query.orderDesc("$createdAt"), Query.limit(100)]
+    );
+    console.log(response.documents);
+    setMessages(response.documents);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("MESSAGE:", messageBody);
 
-    let payload = {
+    const payload = {
       body: messageBody,
     };
 
-    let response = await databases.createDocument(
+    const response = await databases.createDocument(
       DATABASE_ID,
       COLLECTION_ID_MESSAGES,
       ID.unique(),
       payload
     );
 
-    console.log('Created!', response);
-    setMessages(prevState => [response, ...messages]); // successfully sent and updated the message on the screen
-    setMessageBody('');
-  };
-
-  const getMessages = async () => {
-    const response = await databases.listDocuments(
-      DATABASE_ID,
-      COLLECTION_ID_MESSAGES,
-      [
-        Query.orderDesc('$createdAt'), //store the submit message
-        Query.limit(20), // only get the latest 20 messages
-      ]
-    );
     console.log("RESPONSE:", response);
-    setMessages(response.documents);
+
+    setMessageBody("");
   };
-  const deleteMessage = async (message_id) => {
-  try {
-    await databases.deleteDocument(
-      DATABASE_ID,
-      COLLECTION_ID_MESSAGES,
-      message_id
-    );
-    setMessages((prevState) =>
-      prevState.filter((message) => message.$id !== message_id)
-    );
 
-    console.log("Message deleted successfully");
-  } catch (error) {
-    console.error("Error deleting message:", error);
-  }
-};
-
-  
+  const deleteMessage = async (id) => {
+    await databases.deleteDocument(DATABASE_ID, COLLECTION_ID_MESSAGES, id);
+  };
 
   return (
     <main className="container">
       <div className="room--container">
-        <form onSubmit={handleSubmit} id="messages--form">
+        <form id="message--form" onSubmit={handleSubmit}>
           <div>
             <textarea
               required
-              maxLength="1000"
+              maxLength="250"
               placeholder="Say something..."
-              onChange={(e) => {
-                setMessageBody(e.target.value);
-              }}
+              onChange={(e) => setMessageBody(e.target.value)}
               value={messageBody}
             ></textarea>
           </div>
 
-          <div className="send-btn-wrapper">
-            <input className="btn btn-secondary" type="submit" value="Send" />
+          <div className="send-btn--wrapper">
+            <input className="btn btn--secondary" type="submit" value="send" />
           </div>
         </form>
 
         <div>
           {messages.map((message) => (
-            <div key={message.$id} className="message--wrapper">
+            <div key={message.$id} className={"message--wrapper"}>
               <div className="message--header">
-                <small className="message-timestamp">
-                  {new Date(message.$createdAt).toLocaleString()}
-                </small>
+                <p>
+                  {message?.username ? (
+                    <span>{message?.username}</span>
+                  ) : (
+                    "Anonymous user"
+                  )}
+
+                  <small className="message-timestamp">
+                    {new Date(message.$createdAt).toLocaleString()}
+                  </small>
+                </p>
+
+                {/* Delete functionality for all messages */}
                 <Trash2
                   className="delete--btn"
-                  onClick={() => deleteMessage(message.$id)}
+                  onClick={() => {
+                    deleteMessage(message.$id);
+                  }}
                 />
               </div>
-              <div className="message--body">
+
+              <div className={"message--body"}>
                 <span>{message.body}</span>
               </div>
             </div>
@@ -107,4 +134,5 @@ const Room = () => {
     </main>
   );
 };
+
 export default Room;
