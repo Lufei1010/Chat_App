@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../utils/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 function LoginPage() {
   const { user, handleUserLogin } = useAuth(); //Get the user object from AuthContext
@@ -64,6 +64,11 @@ function LoginPage() {
             />
           </div>
         </form>
+
+        <p>
+          Don't have an account? Register<Link to ="/register">here</Link>
+        </p>
+
       </div>
     </div>
   );
