@@ -27,15 +27,15 @@ export const AuthProvider = ({ children }) => {
   const handleUserLogin = async (e, credentials) => {
     e.preventDefault();
 
-        //// Clear any previous session to avoid conflicts
-    try {
+    //     //// Clear any previous session to avoid conflicts
+    // try {
 
-      await account.deleteSession("current");
-      console.log("Previous session cleared.");
-    } catch (error) {
-      console.log("No previous session to clear or error:", error.message);
-    }
-    //// extra features for several user testing
+    //   await account.deleteSession("current");
+    //   console.log("Previous session cleared.");
+    // } catch (error) {
+    //   console.log("No previous session to clear or error:", error.message);
+    // }
+    // //// extra features for several user testing
 
     try {
       const response = await account.createEmailPasswordSession(
