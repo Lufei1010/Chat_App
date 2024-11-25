@@ -5,13 +5,16 @@ import client, {
   COLLECTION_ID_MESSAGES,
 } from "../appwriteConfig";
 import { ID, Query, Permission, Role } from "appwrite";
+import Header from "../components/Header";
+import { useAuth } from "../utils/AuthContext";
 import { Trash2 } from "react-feather";
-import Header from "../Components/Header";
 
 const Room = () => {
   const [messageBody, setMessageBody] = useState("");
   const [messages, setMessages] = useState([]);
+  const { user } = useAuth();
 
+  // Log user data from AuthContext
   useEffect(() => {
     getMessages();
 
@@ -26,7 +29,7 @@ const Room = () => {
           console.log("A MESSAGE WAS CREATED");
           setMessages((prevState) => [response.payload, ...prevState]);
         }
-        console.log('REAL TIME', response)
+
         if (
           response.events.includes(
             "databases.*.collections.*.documents.*.delete"
@@ -45,7 +48,7 @@ const Room = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array for running once
 
   const getMessages = async () => {
     const response = await databases.listDocuments(
@@ -53,15 +56,19 @@ const Room = () => {
       COLLECTION_ID_MESSAGES,
       [Query.orderDesc("$createdAt"), Query.limit(100)]
     );
-    console.log(response.documents);
-    setMessages(response.documents);
+    console.log(response.documents); // Log fetched messages
+    setMessages(response.documents); // Set messages to state
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("MESSAGE:", messageBody);
 
+    const permissions = [Permission.write(Role.user(user.$id))];
+
     const payload = {
+      user_id: user.$id,
+      username: user.name,
       body: messageBody,
     };
 
@@ -69,16 +76,19 @@ const Room = () => {
       DATABASE_ID,
       COLLECTION_ID_MESSAGES,
       ID.unique(),
-      payload
+      payload,
+      permissions
     );
 
     console.log("RESPONSE:", response);
 
+    // setMessages(prevState => [response, ...prevState]); // Optional, to add new message to state immediately
     setMessageBody("");
   };
 
   const deleteMessage = async (id) => {
     await databases.deleteDocument(DATABASE_ID, COLLECTION_ID_MESSAGES, id);
+    //setMessages(prevState => prevState.filter(message => message.$id !== message_id)); // Optional, to update state after delete
   };
 
   return (
@@ -89,9 +99,11 @@ const Room = () => {
           <div>
             <textarea
               required
-              maxLength="250"
+              maxlength="250"
               placeholder="Say something..."
-              onChange={(e) => setMessageBody(e.target.value)}
+              onChange={(e) => {
+                setMessageBody(e.target.value);
+              }}
               value={messageBody}
             ></textarea>
           </div>
@@ -107,26 +119,34 @@ const Room = () => {
               <div className="message--header">
                 <p>
                   {message?.username ? (
-                    <span>{message?.username}</span>
+                    <span> {message?.username}</span>
                   ) : (
                     "Anonymous user"
                   )}
-
                   <small className="message-timestamp">
                     {new Date(message.$createdAt).toLocaleString()}
                   </small>
                 </p>
 
-                {/* Delete functionality for all messages */}
-                <Trash2
-                  className="delete--btn"
-                  onClick={() => {
-                    deleteMessage(message.$id);
-                  }}
-                />
+            
+                {message.$permissions.includes(
+                  `delete("user:${user.$id}")`
+                ) && (
+                  <Trash2
+                    className="delete--btn"
+                    onClick={() => {
+                      deleteMessage(message.$id);
+                    }}
+                  />
+                )}
               </div>
 
-              <div className={"message--body"}>
+              <div
+                className={
+                  "message--body" +
+                  (message.user_id === user.$id ? " message--body--owner" : "")
+                }
+              >
                 <span>{message.body}</span>
               </div>
             </div>

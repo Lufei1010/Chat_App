@@ -74,6 +74,9 @@ export const AuthProvider = ({ children }) => {
 
   }
 
+  
+
+
   const contextData = {
     user, // the user state is exposed to components via here
     handleUserLogin,
